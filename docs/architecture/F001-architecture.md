@@ -1,4 +1,4 @@
-# F001 Architecture: Her 式超级陪伴 AI — 云为主 · Pi 核心 · Hermes 自进化
+# F001 Architecture: His 式超级陪伴 AI — 云为主 · Pi 核心 · Hermes 自进化
 
 > Feature: `F001` | Status: draft | Owner: spark | Date: 2026-08-22  
 > Spec: `docs/specs/F001-spec.md` | Research: `docs/research/2026-08-22-synthesis.md`  
@@ -56,7 +56,7 @@
 ## 2. Pi 核心在架构中的落点
 
 ### 2.1 Persona Engine
-- **文件**：`/persona/SOUL.md`（她的价值观/口吻/边界）、`/persona/USER.md`（用户画像，Honcho 辩证更新）、`/persona/RELATIONSHIP.md`（关系阶段）
+- **文件**：`/persona/SOUL.md`（他的价值观/口吻/边界）、`/persona/USER.md`（用户画像，Honcho 辩证更新）、`/persona/RELATIONSHIP.md`（关系阶段）
 - **注入**：每次 LLM 调用前由 Letta 的 Core Memory 管理器分页注入，常驻上下文 ≤4k tokens
 - **递归情感回路**（伪代码）：
 ```python
