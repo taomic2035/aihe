@@ -1,0 +1,12 @@
+{
+  "name": "aihe-gateway",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0"
+  }
+}
