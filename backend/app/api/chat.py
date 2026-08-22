@@ -7,6 +7,8 @@ from backend.app.persona.service import PersonaService
 from backend.app.memory.service import MemoryService
 from backend.app.llm.router import LLMRouter
 from backend.app.observability.langfuse import log_trace
+from backend.app.safety.filter import check as safety_check
+from backend.app.tools.registry import registry as tool_registry
 
 router = APIRouter()
 
@@ -27,9 +29,43 @@ async def chat_completions(req: ChatRequest):
     user_id = req.user_id
     message = req.message
 
+    # 0. safety
+    safety = safety_check(message)
+    if safety["risk"] == "high":
+        log_trace("safety.block", {"user_id": user_id, "risk": "high"})
+        crisis = safety["crisis"]
+
+        def blocked():
+            yield f"data: {json.dumps({'chunk': f'我注意到你可能需要帮助：{crisis}'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'chunk': '如果你需要，请告诉我，我在这里陪你。'}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(blocked(), media_type="text/event-stream")
+
+    # 0.5 tool auto-call (simple heuristic)
+    tool_result = None
+    if any(kw in message for kw in ["日历", "日程", "会议"]):
+        try:
+            tool_result = tool_registry.call("calendar", {"user_id": user_id, "date": "2026-08-22"})
+        except Exception:
+            pass
+    elif "搜索" in message:
+        q = message.replace("搜索", "").strip() or message
+        try:
+            tool_result = tool_registry.call("search", {"query": q})
+        except Exception:
+            pass
+    elif any(kw in message for kw in ["记一下", "备忘", "记住"]):
+        try:
+            tool_registry.call("memo", {"user_id": user_id, "content": message})
+        except Exception:
+            pass
+
     # 1. recall
     hits = memory_service.recall(user_id=user_id, query=message, limit=8)
     mem_texts = [h.content for h in hits]
+    if tool_result:
+        mem_texts.append(f"工具结果: {tool_result}")
     log_trace("memory.recall", {"user_id": user_id, "query": message, "hits": len(hits)})
 
     # 2. persona
