@@ -17,7 +17,7 @@ class PersonaService:
         # user_profile 来自记忆服务，若未传则读 USER.md 模板
         user = user_profile if user_profile is not None else self._read("USER.md")
         parts = [
-            "# SOUL（她的性格）",
+            "# SOUL（他的性格）",
             soul,
             "\n# USER（用户画像）",
             user,
