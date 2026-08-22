@@ -6,6 +6,7 @@ import json
 from backend.app.persona.service import PersonaService
 from backend.app.memory.service import MemoryService
 from backend.app.llm.router import LLMRouter
+from backend.app.observability.langfuse import log_trace
 
 router = APIRouter()
 
@@ -29,9 +30,11 @@ async def chat_completions(req: ChatRequest):
     # 1. recall
     hits = memory_service.recall(user_id=user_id, query=message, limit=8)
     mem_texts = [h.content for h in hits]
+    log_trace("memory.recall", {"user_id": user_id, "query": message, "hits": len(hits)})
 
     # 2. persona
     persona_prompt = persona_service.build_system_prompt(user_id=user_id)
+    log_trace("chat.completions", {"user_id": user_id, "message": message, "memories": mem_texts})
 
     # 3. stream via LLM
     def generate():
