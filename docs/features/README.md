@@ -4,7 +4,7 @@
 
 ## 活跃
 
-- （暂无）
+- [F002: 生产级替换 — 真实 Qdrant/Letta/语音/WatchOS/GEPA](F002-prod-hardening.md) — spec — 2026-08-22
 
 ## 已完成
 

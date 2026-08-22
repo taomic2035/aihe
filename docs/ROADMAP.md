@@ -5,7 +5,7 @@
 
 | Feature | 名称 | 状态 | Owner | Source | Spec |
 |---------|------|------|-------|--------|------|
-| — | — | — | — | — |
+| F002 | 生产级替换 — 真实 Qdrant/Letta/语音/WatchOS/GEPA | spec | spark | internal | [F002](features/F002-prod-hardening.md) |
 
 ## 已完成
 
