@@ -5,13 +5,13 @@
 
 | Feature | 名称 | 状态 | Owner | Source | Spec |
 |---------|------|------|-------|--------|------|
-| F001 | Her 式超级陪伴 AI（Pi 核心 + Hermes 自进化） | in-progress | spark | internal | [F001](features/F001-her-companion-ai.md) |
+| — | — | — | — | — |
 
 ## 已完成
 
 | Feature | 名称 | 完成日期 | Spec |
 |---------|------|----------|------|
-| — | — | — | — |
+| F001 | Her 式超级陪伴 AI（Pi 核心 + Hermes 自进化） | 2026-08-22 | [F001](features/F001-her-companion-ai.md) |
 
 ## 图例
 
