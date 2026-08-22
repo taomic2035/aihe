@@ -1,6 +1,6 @@
 # ADR-002: 记忆选型 — Letta + Qdrant + Graphiti
 
-> Date: 2026-08-22 | Status: proposed
+> Date: 2026-08-22 | Status: accepted | Approved: 2026-08-22
 
 ## Context
 永久记忆是陪伴的第一留存因子，需同时解决 episodic/semantic/state 三层，纯向量DB不够。

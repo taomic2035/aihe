@@ -1,6 +1,6 @@
 # ADR-001: 基座选型 — Pi 核心 + Hermes Agent
 
-> Date: 2026-08-22 | Status: proposed | Deciders: spark + 铲屎官
+> Date: 2026-08-22 | Status: accepted | Deciders: spark + 铲屎官 | Approved: 2026-08-22
 
 ## Context
 需在 0-1 做出 Her 式陪伴，需兼顾情感陪伴哲学与可持续自进化。Inflection Pi 有哲学但闭源且停滞；Hermes Agent 有可验证的自进化与多端网关。

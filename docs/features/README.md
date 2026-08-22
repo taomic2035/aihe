@@ -4,7 +4,7 @@
 
 ## 活跃
 
-- [F001: Her 式超级陪伴 AI（Pi 核心 + Hermes 自进化）](F001-her-companion-ai.md) — spec — 2026-08-22
+- [F001: Her 式超级陪伴 AI（Pi 核心 + Hermes 自进化）](F001-her-companion-ai.md) — in-progress — 2026-08-22（Phase A/B 已拍板）
 
 ## 已完成
 

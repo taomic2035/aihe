@@ -1,6 +1,6 @@
 # ADR-003: 语音选型 — 级联为主，S2S 为高端可选
 
-> Date: 2026-08-22 | Status: proposed
+> Date: 2026-08-22 | Status: accepted | Approved: 2026-08-22
 
 ## Context
 Her 的沉浸感依赖语音，需在延迟、品质、成本、可观测间权衡。

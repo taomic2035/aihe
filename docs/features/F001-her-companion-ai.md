@@ -8,7 +8,7 @@ created: 2026-08-22
 
 # F001: Her 式超级陪伴 AI（Pi 核心 + Hermes 自进化）
 
-> **Status**: spec | **Owner**: spark | **Priority**: P0
+> **Status**: in-progress | **Owner**: spark | **Priority**: P0
 
 ## Why
 
@@ -67,19 +67,19 @@ created: 2026-08-22
 ## Acceptance Criteria
 
 ### Phase A（需求与规格）
-- [ ] AC-A1: 产出 `docs/specs/F001-spec.md`，覆盖 8 大能力（性格/情感/记忆/听/说/读/写/助理+聊天）每项有定义、边界、优先级与可验证指标
-- [ ] AC-A2: 明确 Pi 核心抽取清单（取什么/不取什么）与 Hermes 复用清单，有决策表与理由，写入 Key Decisions
-- [ ] AC-A3: 云+多端一致性规格：明确 WatchOS thin client 定位、离线补偿、推送节律，且与 Phase B 架构一致
-- [ ] AC-A4: 合规规格：包含 AI 披露、自伤/自杀语言检测、危机资源触达、记忆删除、未成年策略，且对标 NY S-3008C
-- [ ] AC-A5: 需求点 Checklist 100% 映射到 AC，无遗漏（见文末）
+- [x] AC-A1: 产出 `docs/specs/F001-spec.md`，覆盖 8 大能力（性格/情感/记忆/听/说/读/写/助理+聊天）每项有定义、边界、优先级与可验证指标
+- [x] AC-A2: 明确 Pi 核心抽取清单（取什么/不取什么）与 Hermes 复用清单，有决策表与理由，写入 Key Decisions
+- [x] AC-A3: 云+多端一致性规格：明确 WatchOS thin client 定位、离线补偿、推送节律，且与 Phase B 架构一致
+- [x] AC-A4: 合规规格：包含 AI 披露、自伤/自杀语言检测、危机资源触达、记忆删除、未成年策略，且对标 NY S-3008C
+- [x] AC-A5: 需求点 Checklist 100% 映射到 AC，无遗漏（见文末）
 
 ### Phase B（架构设计）
-- [ ] AC-B1: 产出 `docs/architecture/F001-architecture.md` + 3 份 ADR（基座选型、记忆选型、语音选型），含文字架构图与数据模型
-- [ ] AC-B2: Pi 核心设计可落地：SOUL.md/USER.md/RELATIONSHIP.md 三件套格式与情感回路伪代码已定义
-- [ ] AC-B3: 记忆架构通过 Design Gate：Letta + Qdrant/pgvector + Graphiti 分工明确，有接口契约与检索流程
-- [ ] AC-B4: 语音架构通过 Design Gate：明确级联为主、S2S 为可选的决策，成本模型已核算（100k 分钟/月量级）
-- [ ] AC-B5: 多端与自进化架构通过评审：Gateway 复用方案、CRDT/ Realtime 选型、GEPA 门闸与人审流程已定义
-- [ ] AC-B6: 架构产出经猫猫讨论（collaborative-thinking）并获铲屎官拍板，讨论纪要落盘 `docs/discussions/`
+- [x] AC-B1: 产出 `docs/architecture/F001-architecture.md` + 3 份 ADR（基座选型、记忆选型、语音选型），含文字架构图与数据模型
+- [x] AC-B2: Pi 核心设计可落地：SOUL.md/USER.md/RELATIONSHIP.md 三件套格式与情感回路伪代码已定义
+- [x] AC-B3: 记忆架构通过 Design Gate：Letta + Qdrant/pgvector + Graphiti 分工明确，有接口契约与检索流程
+- [x] AC-B4: 语音架构通过 Design Gate：明确级联为主、S2S 为可选的决策，成本模型已核算（100k 分钟/月量级）
+- [x] AC-B5: 多端与自进化架构通过评审：Gateway 复用方案、CRDT/ Realtime 选型、GEPA 门闸与人审流程已定义
+- [x] AC-B6: 架构产出经猫猫讨论（collaborative-thinking）并获铲屎官拍板，讨论纪要落盘 `docs/discussions/`
 
 ### Phase C（云基座实现）
 - [ ] AC-C1: `docker compose up` 一键拉起 Gateway + Letta + Qdrant + Postgres + Redis，健康检查全绿
@@ -115,12 +115,12 @@ created: 2026-08-22
 
 | # | 问题 | 状态 |
 |---|------|------|
-| OQ-1 | Pi 核心具体取哪些文件/机制？是否需逆向 Pi 的 system prompt 风格？ | ⬜ 需 Phase A 明确 |
-| OQ-2 | 主 LLM 定 Qwen3 还是 DeepSeek V3 为默认？成本/中文/情感能力如何权衡？ | ⬜ 需 Phase B ADR |
-| OQ-3 | 向量库 MVP 用 pgvector 极简还是直接 Qdrant？ | ⬜ 需 ADR-002 |
-| OQ-4 | 语音自托管（Fish Audio） vs 托管（ElevenLabs）首版选哪个？ | ⬜ 需 ADR-003 |
-| OQ-5 | WatchOS 是否首版就做，还是 Phase D 再做？ | ⬜ 待铲屎官定优先级 |
-| OQ-6 | 数据主权：是否需境内/境外双部署？ | ⬜ 待确认用户地域 |
+| OQ-1 | Pi 核心具体取哪些文件/机制？是否需逆向 Pi 的 system prompt 风格？ | ✅ 已定：取情感回路+SOUL+图谱理念（ADR-001） |
+| OQ-2 | 主 LLM 定 Qwen3 还是 DeepSeek V3 为默认？成本/中文/情感能力如何权衡？ | ✅ 已定：双默认 Qwen3-32B/DeepSeek V3，OpenRouter 路由（ADR-001） |
+| OQ-3 | 向量库 MVP 用 pgvector 极简还是直接 Qdrant？ | ✅ 已定：Qdrant 主，pgvector 兜底（ADR-002） |
+| OQ-4 | 语音自托管（Fish Audio） vs 托管（ElevenLabs）首版选哪个？ | ✅ 已定：Fish Audio 自托管主，ElevenLabs 备（ADR-003） |
+| OQ-5 | WatchOS 是否首版就做，还是 Phase D 再做？ | ✅ 已定：Phase D（thin client） |
+| OQ-6 | 数据主权：是否需境内/境外双部署？ | ⬜ 二期决策，不阻塞 Phase C |
 
 ## Key Decisions
 
@@ -131,16 +131,17 @@ created: 2026-08-22
 | KD-3 | 记忆采用 Letta + Qdrant + Graphiti 分层 | 唯一经生产验证的 LLM OS 方案，覆盖 episodic/semantic/state | 2026-08-22 |
 | KD-4 | 语音采用级联为主、S2S 为可选 | 成本可控（$5k vs $30k/100k分钟）、可换模型、可观测 | 2026-08-22 |
 | KD-5 | 顺着需求-规格-架构推进，不跳步 | 用户明确要求，符合面向终态原则 | 2026-08-22 |
+| KD-6 | ADR-001/002/003 拍板（2026-08-22 铲屎官同意1/2/3） | 明确 Qwen3/DeepSeek双默认、Qdrant主、Fish Audio主 | 2026-08-22 |
 
 ## Timeline
 
 | 日期 | 事件 |
 |------|------|
 | 2026-08-22 | 立项 F001，调研 synthesis 完成 |
-| 2026-08-22 | Phase A 需求与规格 启动 |
-| TBD | Phase A 完成 → Design Gate |
-| TBD | Phase B 架构设计 完成 → 铲屎官拍板 |
-| TBD | Phase C 云基座实现 |
+| 2026-08-22 | Phase A 需求与规格 完成（F001-spec.md） |
+| 2026-08-22 | Phase B 架构设计 完成（F001-architecture.md + ADR-001/002/003） |
+| 2026-08-22 | 铲屎官拍板同意 1/2/3，ADR 全量 accepted，F001 进入 in-progress |
+| TBD | Phase C 云基座实现（下一步） |
 | TBD | Phase D 语音/多端/自进化 |
 
 ## Review Gate
@@ -156,8 +157,11 @@ created: 2026-08-22
 |------|------|------|
 | Research | `docs/research/2026-08-22-synthesis.md` | Her 陪伴全面调研（含 Pi/Hermes/记忆/语音/合规） |
 | Prompt | `docs/prompts/2026-08-22-her-companion-ai-research-prompt.md` | 调研 prompt 源 |
-| Decision | `docs/decisions/` | ADR-001~003 待建 |
-| Discussion | `docs/discussions/` | Phase A/B 讨论纪要待建 |
+| Decision | `docs/decisions/ADR-001-base.md` | 基座 Pi+Hermes（accepted） |
+| Decision | `docs/decisions/ADR-002-memory.md` | 记忆 Letta+Qdrant（accepted） |
+| Decision | `docs/decisions/ADR-003-voice.md` | 语音级联为主（accepted） |
+| Spec | `docs/specs/F001-spec.md` | 8+1 能力规格 |
+| Architecture | `docs/architecture/F001-architecture.md` | 云中心架构 |
 
 ## 需求点 Checklist
 
