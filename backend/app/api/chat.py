@@ -41,9 +41,11 @@ async def chat_completions(req: ChatRequest):
         # SSE format
         for chunk in llm_router.stream(user_id=user_id, message=message, persona_prompt=persona_prompt, memories=mem_texts):
             yield f"data: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
-        # persist memory after stream (very naive: if message contains "我叫" or "喜欢" then store)
-        # keep it simple for TDD: store user message as memory if it looks like a fact
-        if any(kw in message for kw in ["我叫", "喜欢", "住在", "养", "叫"]):
+        # persist memory after stream (very naive fact detection)
+        # keep it simple for TDD: store if looks like a fact and not a question
+        is_question = any(q in message for q in ["什么", "吗", "？", "?", "哪"])
+        is_fact = any(kw in message for kw in ["我叫", "喜欢", "住在", "养", "我是"])
+        if is_fact and not is_question:
             memory_service.write(user_id=user_id, content=message)
         yield "data: [DONE]\n\n"
 
