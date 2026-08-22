@@ -4,8 +4,8 @@ from backend.app.voice.tts import TTSService
 
 class VoicePipeline:
     def __init__(self, stt: STTService | None = None, tts: TTSService | None = None):
-        self.stt = stt or STTService(provider="mock")
-        self.tts = tts or TTSService(provider="mock")
+        self.stt = stt or STTService()
+        self.tts = tts or TTSService()
 
     def voice_to_voice(self, audio: bytes, emotion: str = "warm") -> bytes:
         text = self.stt.transcribe(audio)
