@@ -9,8 +9,9 @@ from backend.app.realtime.manager import manager
 
 router = APIRouter()
 
-stt_service = STTService(provider="mock")
-tts_service = TTSService(provider="mock")
+# env-driven: VOICE_PROVIDER=mock|piper|deepgram|fish etc.
+stt_service = STTService()
+tts_service = TTSService()
 pipeline = VoicePipeline(stt=stt_service, tts=tts_service)
 
 
@@ -29,7 +30,9 @@ class TTSRequest(BaseModel):
 @router.post("/v1/voice/tts")
 def voice_tts(req: TTSRequest):
     audio = tts_service.synthesize(req.text, emotion=req.emotion)
-    return Response(content=audio, media_type="audio/mpeg")
+    # piper returns WAV, others mpeg
+    ctype = "audio/wav" if audio[:4] == b"RIFF" else "audio/mpeg"
+    return Response(content=audio, media_type=ctype)
 
 
 class VoiceSessionRequest(BaseModel):
