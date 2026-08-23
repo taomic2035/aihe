@@ -13,7 +13,7 @@
 - ADR-003 语音：级联为主（STT→LLM→TTS），S2S 为 Pro 可选
 - **He 人设**：26岁 温暖大哥哥，男声（`persona/SOUL.md`）
 - LLM 实测选定：`nvidia/nemotron-3-nano-30b-a3b:free`（OpenRouter 免费额度）
-  - API Key: `REDACTED`（taomic 的 OpenRouter key）
+  - API Key: 见 `.env` 或 `OPENROUTER_API_KEY` 环境变量
 - ASR 终态：**SenseVoiceSmall 本地**（国内直连 modelscope，M5 实测 0.82s，中文 CER 7.81%，Whisper 慢10×被否）
 - TTS 终态演进：
   - 过渡已通：**Edge Yunxi 男声** `zh-CN-YunxiNeural`（1.25s 真声 MP3，最自然 0 成本）
@@ -62,7 +62,7 @@ worktree        /Users/taomic/vibecoding/aihe-F002-prod [feat/F002-prod] 4bb3bfe
 **重启后端（真实 LLM + Edge 男声）：**
 ```bash
 cd ~/vibecoding/aihe-F002-prod
-export OPENROUTER_API_KEY="REDACTED"
+export OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
 export LLM_MODEL="nvidia/nemotron-3-nano-30b-a3b:free"
 export VOICE_PROVIDER="edge"
 export EDGE_VOICE="zh-CN-YunxiNeural"
