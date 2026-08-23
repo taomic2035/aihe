@@ -21,6 +21,7 @@
   .hint{font-size:12px; color:#888; margin-top:8px; text-align:center}
   .status{font-size:13px; color:#666; margin:8px 0; text-align:center}
   audio{width:100%; margin-top:8px}
+  .latency{font-size:11px; color:#999; margin-top:4px}
 </style>
 </head>
 <body>
@@ -28,18 +29,17 @@
 <div class="sub">你只管说话，他会听、会记住、会用男声回你。</div>
 <div id="status" class="status">准备就绪 — 点下方开始</div>
 <div id="log">
-  <div class="msg sys">He：你好，阿明，我是 aihe，你的 AI 伙伴。想聊什么就直接说吧 ✨</div>
+  <div class="msg sys">He：你好，我是 aihe，你的 AI 伙伴。想聊什么就直接说吧</div>
 </div>
 <button id="btn">🎙️ 点击说话</button>
-<button id="testTts" class="small">🔊 点我直接试男声（不说话）</button>
-<button id="testWav" class="small">🎵 试播已生成的 wav</button>
-<div class="hint">需 Chrome / Edge 并允许麦克风 · 若无声请看下方音频条手动点播放</div>
+<button id="testTts" class="small">🔊 试男声</button>
+<div class="hint">需 Chrome / Edge 并允许麦克风</div>
 
 <script>
 const log = document.getElementById('log');
 const btn = document.getElementById('btn');
 const status = document.getElementById('status');
-const userId = 'u_he_voice_' + Math.random().toString(36).slice(2,6);
+const userId = 'u_he_' + Math.random().toString(36).slice(2,6);
 let recognition = null;
 let listening = false;
 
@@ -51,66 +51,69 @@ function addMsg(who, text){
   log.scrollTop = log.scrollHeight;
   return d;
 }
-function setStatus(t){ status.textContent = t; console.log('[status]', t); }
+function setStatus(t){ status.textContent = t; }
+
+function cleanTts(text){
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/[#`~|>_]/g, '')
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 async function playHe(text){
-  setStatus('合成男声… ' + text.slice(0,20));
+  const clean = cleanTts(text);
+  if(!clean) return;
+  setStatus('合成男声…');
+  const t0 = performance.now();
   try{
-    const ttsResp = await fetch('http://localhost:8000/v1/voice/tts', {
+    const resp = await fetch('http://localhost:8000/v1/voice/tts', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({text: text.slice(0,300), emotion:'warm'})
+      body: JSON.stringify({text: clean.slice(0,300), emotion:'warm'})
     });
-    console.log('tts status', ttsResp.status, ttsResp.headers.get('content-type'));
-    const blob = await ttsResp.blob();
-    console.log('tts blob', blob.size, blob.type);
-    if(blob.size < 100){
-      const txt = await blob.text();
-      console.log('tts body', txt.slice(0,200));
-      setStatus('TTS 返回异常：' + txt.slice(0,100));
-      addMsg('sys', 'TTS 异常：' + txt.slice(0,200));
-      return;
-    }
+    const blob = await resp.blob();
+    const ttsMs = Math.round(performance.now() - t0);
+    if(blob.size < 100){ setStatus('TTS异常'); return; }
     const url = URL.createObjectURL(blob);
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.autoplay = true;
     audio.src = url;
+    const latDiv = document.createElement('div');
+    latDiv.className = 'latency';
+    latDiv.textContent = `TTS: ${ttsMs}ms / ${(blob.size/1024).toFixed(1)}KB`;
     log.appendChild(audio);
+    log.appendChild(latDiv);
     log.scrollTop = log.scrollHeight;
-    setStatus('已生成音频条，请点 ▶️ 播放（若未自动播）');
-    try{
-      await audio.play();
-      setStatus('播放中…');
-      audio.onended = ()=> setStatus('播放结束，再点说话继续');
-    }catch(e){
-      console.log('play blocked', e);
-      setStatus('浏览器拦截自动播放，请手动点音频条 ▶️');
-    }
-    audio.onerror = (e)=> { console.log('audio error', e); setStatus('音频加载失败'); };
-  }catch(e){
-    console.log('tts fetch fail', e);
-    setStatus('TTS 请求失败：'+e);
-  }
+    setStatus('播放中…');
+    try{ await audio.play(); }catch(e){ setStatus('请手动点播放'); }
+    audio.onended = ()=> setStatus('播放结束，再点说话继续');
+  }catch(e){ setStatus('TTS失败：'+e); }
 }
 
-// 测试按钮：不说话直接试男声
-document.getElementById('testTts').onclick = async ()=>{
-  const t = '你好，我是 aihe，记得你喜欢喝美式，住在上海。很高兴陪你聊天。';
-  addMsg('user', '[测试] '+t);
-  // 先过 He LLM 再 TTS
+// 快速模式：LLM流式收集，第一句出来就调TTS，后续分句合成
+async function chatAndSpeak(text){
+  addMsg('user', text);
   setStatus('He 在思考…');
+  btn.disabled = true;
+  const t0 = performance.now();
+
   try{
     const resp = await fetch('http://localhost:8000/v1/chat/completions', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({user_id:userId, message:t})
+      body: JSON.stringify({user_id:userId, message:text})
     });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
-    let full='', buffer='';
+    let full = '', buffer = '', sentenceBuf = '';
     const heDiv = addMsg('he', '');
-    heDiv.textContent = 'He：';
+    let firstTtsDone = false;
+
     while(true){
       const {value, done} = await reader.read();
       if(done) break;
@@ -119,20 +122,54 @@ document.getElementById('testTts').onclick = async ()=>{
       buffer = lines.pop();
       for(const line of lines){
         if(line.startsWith('data: ')){
-          const d=line.slice(6).trim();
+          const d = line.slice(6).trim();
           if(d==='[DONE]') break;
-          try{ const j=JSON.parse(d); if(j.chunk){ full+=j.chunk; heDiv.textContent='He：'+full; } }catch{}
+          try{
+            const j = JSON.parse(d);
+            if(j.chunk){
+              full += j.chunk;
+              sentenceBuf += j.chunk;
+              heDiv.textContent = 'He：' + full;
+              log.scrollTop = log.scrollHeight;
+
+              // 分句：遇到句号/问号/感叹号/换行就合成
+              const sentences = sentenceBuf.split(/(?<=[。！？；\n])/);
+              if(sentences.length > 1 && sentences[0].length >= 4){
+                const toSpeak = sentences[0];
+                sentenceBuf = sentences.slice(1).join('');
+                if(!firstTtsDone){
+                  firstTtsDone = true;
+                  const chatMs = Math.round(performance.now() - t0);
+                  setStatus(`首句 ${chatMs}ms → TTS…`);
+                }
+                await playHe(toSpeak);
+              }
+            }
+          }catch{}
         }
       }
     }
-    await playHe(full || t);
-  }catch(e){ setStatus('出错'+e); }
-};
-document.getElementById('testWav').onclick = ()=>{
-  const a = document.createElement('audio');
-  a.controls=true; a.autoplay=true; a.src='/tmp/test_piper.wav';
-  // try fetch via backend static? fallback to direct TTS test
-  playHe('测试男声，如果你听到这句，TTS 就通了');
+    // 剩余内容
+    if(sentenceBuf.trim()){
+      await playHe(sentenceBuf);
+    }
+    if(!full){
+      heDiv.textContent = 'He：（无回复）';
+    }
+    const totalMs = Math.round(performance.now() - t0);
+    setStatus(`完成 ${totalMs}ms`);
+  }catch(err){
+    setStatus('出错：'+err);
+    addMsg('sys', '出错：'+err);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// 试男声
+document.getElementById('testTts').onclick = async ()=>{
+  addMsg('user', '[试男声]');
+  await playHe('你好，我是aihe，记得你喜欢喝美式，住在上海。很高兴陪你聊天。');
 };
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -144,69 +181,21 @@ if(!SpeechRecognition){
   recognition.lang = 'zh-CN';
   recognition.interimResults = false;
   recognition.continuous = false;
-  recognition.onstart = ()=>{ listening=true; btn.classList.add('listening'); btn.textContent='🔴 正在听… 说完会自动发送'; setStatus('正在听…'); };
+  recognition.onstart = ()=>{ listening=true; btn.classList.add('listening'); btn.textContent='🔴 正在听…'; setStatus('正在听…'); };
   recognition.onend = ()=>{ listening=false; btn.classList.remove('listening'); btn.textContent='🎙️ 点击说话'; if(!recognition._handled) setStatus('没听清？再点一次'); };
-  recognition.onerror = (e)=>{ setStatus('识别出错：'+e.error); console.log(e); };
-  recognition.onresult = async (e)=>{
+  recognition.onerror = (e)=>{ setStatus('识别出错：'+e.error); };
+  recognition.onresult = (e)=>{
     const text = e.results[0][0].transcript.trim();
     recognition._handled = true;
     if(!text) return;
-    addMsg('user', text);
-    setStatus('He 在思考…');
-    btn.disabled = true;
-    try{
-      const resp = await fetch('http://localhost:8000/v1/chat/completions', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({user_id:userId, message:text})
-      });
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let full = '';
-      let buffer = '';
-      const heDiv = addMsg('he', '');
-      heDiv.textContent = 'He：';
-      while(true){
-        const {value, done} = await reader.read();
-        if(done) break;
-        buffer += decoder.decode(value, {stream:true});
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for(const line of lines){
-          if(line.startsWith('data: ')){
-            const data = line.slice(6).trim();
-            if(data==='[DONE]') break;
-            try{
-              const j = JSON.parse(data);
-              if(j.chunk){ full += j.chunk; heDiv.textContent = 'He：' + full; log.scrollTop = log.scrollHeight; }
-            }catch{}
-          }
-        }
-      }
-      await playHe(full);
-    }catch(err){
-      setStatus('出错：'+err); console.log(err);
-      addMsg('sys', '出错：'+err);
-    }finally{
-      btn.disabled = false;
-      setTimeout(()=>{ recognition._handled=false; }, 500);
-    }
+    chatAndSpeak(text);
   };
 }
 
 btn.onclick = ()=>{
   if(listening){ recognition.stop(); return; }
-  try{ recognition.start(); }catch(e){ setStatus('启动失败：'+e); console.log(e); }
+  try{ recognition.start(); }catch(e){ setStatus('启动失败：'+e); }
 };
-
-// 预热记忆
-setTimeout(()=>{
-  fetch('http://localhost:8000/v1/chat/completions', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({user_id:userId, message:'我叫阿明，喜欢喝美式，住在上海'})
-  }).then(()=>console.log('warmup ok')).catch(e=>console.log('warmup fail',e));
-}, 800);
 </script>
 </body>
 </html>

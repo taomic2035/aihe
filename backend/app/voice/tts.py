@@ -1,9 +1,20 @@
 import os
+import re
 import time
 import pathlib
 import wave
 import io
 import asyncio
+
+
+def _clean_for_tts(text: str) -> str:
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)
+    text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r'[#`~|>_]', '', text)
+    text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
 
 
 class TTSService:
@@ -61,7 +72,9 @@ class TTSService:
         return buf.getvalue()
 
     def synthesize(self, text: str, emotion: str = "warm") -> bytes:
-        text = text[:500]
+        text = _clean_for_tts(text[:500])
+        if not text:
+            text = "嗯"
         if self.provider == "mock":
             time.sleep(0.03)
             return f"fake-audio-{text}-{emotion}".encode()
@@ -108,7 +121,9 @@ class TTSService:
         return f"fake-audio-{text}-{emotion}-fallback".encode()
 
     async def synthesize_async(self, text: str, emotion: str = "warm") -> bytes:
-        text = text[:500]
+        text = _clean_for_tts(text[:500])
+        if not text:
+            text = "嗯"
         if self.provider == "mock":
             await asyncio.sleep(0.03)
             return f"fake-audio-{text}-{emotion}".encode()
