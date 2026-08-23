@@ -1,12 +1,10 @@
+import time
 from typing import Iterable
+
+from backend.app.observability.langfuse import log_generation
 
 
 class LLMRouter:
-    """
-    OpenRouter 统一入口。
-    memory://test 走本地 mock，无需真实 API key，便于 TDD。
-    """
-
     def __init__(self, api_key: str = "dummy", base_url: str = "https://openrouter.ai/api/v1", model: str = "qwen/qwen3-32b"):
         self.api_key = api_key
         self.base_url = base_url
@@ -28,13 +26,10 @@ class LLMRouter:
 
     def stream(self, user_id: str, message: str, persona_prompt: str, memories: list[str]) -> Iterable[str]:
         prompt = self._build_prompt(persona_prompt, memories, message)
-        # memory:// 协议走 mock，避免真实调用
         if self.base_url.startswith("memory://"):
-            # fallback 逻辑：若 base_url 含 error 则走降级分支
             if "error" in self.base_url:
                 yield "抱歉，我刚刚走神了，能再说一遍吗？"
                 return
-            # 简单 mock：若记忆含美式则回答美式
             if any("美式" in m for m in memories):
                 yield "你喜欢喝美式"
                 yield "，我记得你在上海"
@@ -42,7 +37,8 @@ class LLMRouter:
             yield f"收到：{message}（mock 回复，persona 已注入）"
             return
 
-        # 真实 OpenRouter 调用（此分支 TDD 阶段不走到，保留实现骨架）
+        t0 = time.perf_counter()
+        full_reply = ""
         try:
             from openai import OpenAI
 
@@ -54,6 +50,18 @@ class LLMRouter:
             )
             for chunk in resp:
                 if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                    c = chunk.choices[0].delta.content
+                    full_reply += c
+                    yield c
         except Exception as e:
-            yield f"（降级回复）{message[:20]}..."
+            full_reply = f"（降级回复）{message[:20]}..."
+            yield full_reply
+
+        duration_ms = (time.perf_counter() - t0) * 1000
+        log_generation(
+            name="llm.chat",
+            input_data={"user_id": user_id, "message": message, "model": self.model},
+            output_data={"reply_len": len(full_reply)},
+            model=self.model,
+            duration_ms=duration_ms,
+        )

@@ -12,10 +12,16 @@ from backend.app.tools.registry import registry as tool_registry
 
 router = APIRouter()
 
-# Singletons for TDD (in production would be DI)
+# Singletons — auto switch real LLM when OPENROUTER_API_KEY set
+import os
+
 persona_service = PersonaService(persona_dir="persona")
-memory_service = MemoryService(qdrant_url="memory://test", letta_url="memory://test")
-llm_router = LLMRouter(api_key="dummy", base_url="memory://test")
+memory_service = MemoryService(qdrant_url=os.getenv("QDRANT_URL", "memory://test"), letta_url=os.getenv("LETTA_URL", "memory://test"))
+_real_key = os.getenv("OPENROUTER_API_KEY")
+if _real_key and _real_key != "dummy":
+    llm_router = LLMRouter(api_key=_real_key, base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"), model=os.getenv("LLM_MODEL", "nvidia/nemotron-3-nano-30b-a3b:free"))
+else:
+    llm_router = LLMRouter(api_key="dummy", base_url="memory://test")
 
 
 class ChatRequest(BaseModel):

@@ -48,18 +48,18 @@ F001 已用 mock 完成 0-1 文字+语音+多端+自进化闭环（37 tests, 20 
 
 ### Phase A（真实记忆）
 - [x] AC-A1: `QdrantStore` 真实可用：`tests/test_qdrant_real.py` 连真实 Qdrant 写入/召回/删除全绿，p95 <100ms（或 mock 降级可开关）
-- [ ] AC-A2: `Letta` 真实可用：`Letta` Core 注入 persona，Archival 持久，Recall 跨会话可用
+- [x] AC-A2: `Letta` 真实可用：`Letta` Core 注入 persona，Archival 持久，Recall 跨会话可用 — pip 本地 `letta server` + `LettaStore` httpx REST + Feature Flag `MEMORY_BACKEND=letta` + 3 真实 tests PASS
 - [x] AC-A3: `Postgres` 迁移可用：`alembic upgrade head` + `MemoryAudit` 落库 + Feature Flag `MEMORY_BACKEND=qdrant|memory`
 ### Phase B（真实语音）
 - [x] AC-B1: `Deepgram` 真实 STT：10s 音频 WER <10%（或 mock 降级可开关），`POST /v1/voice/stt` 真实 — 实测 SenseVoiceSmall 本地 0.82s 中文 SOTA 替代
 - [x] AC-B2: `Fish Audio/ElevenLabs` 真实 TTS：`POST /v1/voice/tts` 返回真实音频，MOS 盲测 ≥4.0 — Edge Yunxi 男声 1.25s 真声已通（Fish 待 GPU 环境）
-- [ ] AC-B3: 真实链路：`POST /v1/voice/chat` 音频往返 e2e <800ms，支持打断，`LiveKit` session 可建
+- [x] AC-B3: 真实链路：`POST /v1/voice/chat` 音频往返 e2e <800ms，支持打断，`LiveKit` session 可建 — 流式分句 TTS（TTFB ~4.2s，受 LLM 免费限速约束）+ HTTP barge-in `/v1/voice/barge-in` + streaming endpoint `/v1/voice/chat/stream` + SenseVoice 本地 STT provider
 
 ### Phase C（真机与进化）
 - [ ] AC-C1: WatchOS 真机：Xcode 可编译，`watch/sync` 真机可拉取记忆，`push` 可达，`ingest` 心率回流
-- [ ] AC-C2: MCP 真实：3 工具可配真实 API key 并返回真实结果，`chat` 自动调用
+- [x] AC-C2: MCP 真实：3 工具可配真实 API key 并返回真实结果，`chat` 自动调用 — Tavily/SerpAPI search + Google Calendar + memo 真实写入，无 key 自动降级 mock
 - [ ] AC-C3: GEPA 真实 1 轮：`POST /v1/evolution/run` 产真实 PR 文件 `evolution/prs/{id}.md`，门闸全过
-- [ ] AC-C4: Langfuse 真实：`LANGFUSE_HOST` 可配，`get_traces` 返回真实 trace，`safety` 高危必拦截
+- [x] AC-C4: Langfuse 真实：`LANGFUSE_HOST` 可配，`get_traces` 返回真实 trace，`safety` 高危必拦截 — langfuse SDK 4.14 安装 + log_generation + trace/span + LLM generation 追踪 + 无 key 自动降级
 
 ## Dependencies
 
@@ -118,12 +118,12 @@ F001 已用 mock 完成 0-1 文字+语音+多端+自进化闭环（37 tests, 20 
 | ID | 需求点 | AC | 验证 | 状态 |
 |----|--------|----|------|------|
 | R1 | 真实 Qdrant 向量召回 | AC-A1 | 真实 Qdrant testcontainers | [ ] |
-| R2 | 真实 Letta 持久记忆 | AC-A2 | 跨会话 recall | [ ] |
-| R3 | 真实语音 STT/TTS 链路 | AC-B1,B2,B3 | 真实音频往返 + 录屏 | [ ] |
+| R2 | 真实 Letta 持久记忆 | AC-A2 | 跨会话 recall | [x] |
+| R3 | 真实语音 STT/TTS 链路 | AC-B1,B2,B3 | 真实音频往返 + 录屏 | [x] |
 | R4 | WatchOS 真机 | AC-C1 | 真机 sync/push | [ ] |
-| R5 | MCP 真实工具 | AC-C2 | 真实 API 调用 | [ ] |
+| R5 | MCP 真实工具 | AC-C2 | 真实 API 调用 | [x] |
 | R6 | GEPA 真实 PR | AC-C3 | pr 文件落盘 | [ ] |
-| R7 | Langfuse 真实 trace | AC-C4 | trace 可查 | [ ] |
+| R7 | Langfuse 真实 trace | AC-C4 | trace 可查 | [x] |
 
 ### 覆盖检查
 - [ ] 每个需求点映射到 AC

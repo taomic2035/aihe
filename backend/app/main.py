@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.app.api.chat import router as chat_router
 from backend.app.api.memories import router as memories_router
@@ -11,6 +12,7 @@ from backend.app.api.evolution import router as evolution_router
 from backend.app.api.safety import router as safety_router
 
 app = FastAPI(title="aihe backend", version="0.1.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(chat_router)
 app.include_router(memories_router)
 app.include_router(realtime_router)
@@ -24,13 +26,15 @@ app.include_router(safety_router)
 
 @app.get("/health")
 def health():
+    from backend.app.api.chat import memory_service
+    letta_ok = memory_service.letta_health()
     return {
         "status": "ok",
         "services": {
             "postgres": "ok",
             "redis": "ok",
             "qdrant": "ok",
-            "letta": "ok",
+            "letta": "ok" if letta_ok else "unavailable",
         },
     }
 
