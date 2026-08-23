@@ -85,9 +85,10 @@ async def chat_completions(req: ChatRequest):
             yield f"data: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
         # persist memory after stream (very naive fact detection)
         # keep it simple for TDD: store if looks like a fact and not a question
-        is_question = any(q in message for q in ["什么", "吗", "？", "?", "哪"])
-        is_fact = any(kw in message for kw in ["我叫", "喜欢", "住在", "养", "我是"])
-        if is_fact and not is_question:
+        is_question = any(q in message for q in ["什么", "吗", "？", "?", "哪", "怎么", "为什么"])
+        is_short = len(message) < 4
+        is_fact = any(kw in message for kw in ["我叫", "我叫", "我是", "喜欢", "住在", "养了", "工作", "生日", "电话", "地址"])
+        if is_fact and not is_question and not is_short:
             memory_service.write(user_id=user_id, content=message)
         yield "data: [DONE]\n\n"
 

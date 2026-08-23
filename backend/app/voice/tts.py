@@ -62,14 +62,24 @@ class TTSService:
             wav.writeframes(audio_bytes)
         return buf.getvalue()
 
-    async def _edge_mp3(self, text: str) -> bytes:
+    async def _edge_mp3(self, text: str, retries: int = 2) -> bytes:
         import edge_tts
-        communicate = edge_tts.Communicate(text, self.edge_voice)
-        buf = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                buf.write(chunk["data"])
-        return buf.getvalue()
+        for attempt in range(retries + 1):
+            try:
+                communicate = edge_tts.Communicate(text, self.edge_voice)
+                buf = io.BytesIO()
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        buf.write(chunk["data"])
+                audio = buf.getvalue()
+                if len(audio) < 100:
+                    raise RuntimeError(f"edge tts no audio ({len(audio)} bytes)")
+                return audio
+            except Exception as e:
+                if attempt < retries:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+                raise
 
     def synthesize(self, text: str, emotion: str = "warm") -> bytes:
         text = _clean_for_tts(text[:500])
