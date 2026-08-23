@@ -58,7 +58,7 @@ F001 已用 mock 完成 0-1 文字+语音+多端+自进化闭环（37 tests, 20 
 ### Phase C（真机与进化）
 - [ ] AC-C1: WatchOS 真机：Xcode 可编译，`watch/sync` 真机可拉取记忆，`push` 可达，`ingest` 心率回流
 - [x] AC-C2: MCP 真实：3 工具可配真实 API key 并返回真实结果，`chat` 自动调用 — Tavily/SerpAPI search + Google Calendar + memo 真实写入，无 key 自动降级 mock
-- [ ] AC-C3: GEPA 真实 1 轮：`POST /v1/evolution/run` 产真实 PR 文件 `evolution/prs/{id}.md`，门闸全过
+- [x] AC-C3: GEPA 真实 1 轮：`POST /v1/evolution/run` 产真实 PR 文件 `evolution/prs/{id}.md`，门闸全过 — 读取 langfuse traces + 变异 SOUL.md + 评估评分 + 门闸(tests/size/semantic) + PR 文件落盘
 - [x] AC-C4: Langfuse 真实：`LANGFUSE_HOST` 可配，`get_traces` 返回真实 trace，`safety` 高危必拦截 — langfuse SDK 4.14 安装 + log_generation + trace/span + LLM generation 追踪 + 无 key 自动降级
 
 ## Dependencies
