@@ -20,16 +20,15 @@
   @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
   .hint{font-size:12px; color:#888; margin-top:8px; text-align:center}
   .status{font-size:13px; color:#666; margin:8px 0; text-align:center}
-  audio{width:100%; margin-top:8px}
-  .latency{font-size:11px; color:#999; margin-top:4px}
+  .latency{font-size:11px; color:#999; margin-top:2px}
 </style>
 </head>
 <body>
 <h1>aihe — He <span style="font-weight:400; color:#666">26岁 温暖大哥哥</span></h1>
 <div class="sub">你只管说话，他会听、会记住、会用男声回你。</div>
-<div id="status" class="status">准备就绪 — 点下方开始</div>
+<div id="status" class="status">准备就绪</div>
 <div id="log">
-  <div class="msg sys">He：你好，我是 aihe，你的 AI 伙伴。想聊什么就直接说吧</div>
+  <div class="msg sys">He：你好，我是 aihe，想聊什么就直接说吧</div>
 </div>
 <button id="btn">🎙️ 点击说话</button>
 <button id="testTts" class="small">🔊 试男声</button>
@@ -42,6 +41,11 @@ const status = document.getElementById('status');
 const userId = 'u_he_' + Math.random().toString(36).slice(2,6);
 let recognition = null;
 let listening = false;
+let streaming = false;
+let audioCtx = null;
+let audioQueue = [];
+let audioPlaying = false;
+let currentSource = null;
 
 function addMsg(who, text){
   const d = document.createElement('div');
@@ -52,6 +56,48 @@ function addMsg(who, text){
   return d;
 }
 function setStatus(t){ status.textContent = t; }
+
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playAudioBlob(blob){
+  const ctx = getAudioCtx();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      ctx.decodeAudioData(reader.result, (buf) => {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.onended = resolve;
+        src.onerror = reject;
+        currentSource = src;
+        src.start(0);
+      }, (e) => { console.warn('decode err', e); reject(e); });
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+async function playQueue(){
+  if(audioPlaying) return;
+  audioPlaying = true;
+  while(audioQueue.length > 0){
+    const blob = audioQueue.shift();
+    try{ await playAudioBlob(blob); }catch(e){ console.warn('play err', e); }
+  }
+  audioPlaying = false;
+  if(!streaming) setStatus('说完啦，继续聊');
+}
+
+function stopAudio(){
+  if(currentSource){ try{ currentSource.stop(); }catch(e){} currentSource=null; }
+  audioQueue = [];
+  audioPlaying = false;
+}
 
 function cleanTts(text){
   return text
@@ -64,42 +110,25 @@ function cleanTts(text){
     .trim();
 }
 
-async function playHe(text){
+async function fetchTts(text){
   const clean = cleanTts(text);
-  if(!clean) return;
-  setStatus('合成男声…');
-  const t0 = performance.now();
-  try{
-    const resp = await fetch('http://localhost:8000/v1/voice/tts', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({text: clean.slice(0,300), emotion:'warm'})
-    });
-    const blob = await resp.blob();
-    const ttsMs = Math.round(performance.now() - t0);
-    if(blob.size < 100){ setStatus('TTS异常'); return; }
-    const url = URL.createObjectURL(blob);
-    const audio = document.createElement('audio');
-    audio.controls = true;
-    audio.autoplay = true;
-    audio.src = url;
-    const latDiv = document.createElement('div');
-    latDiv.className = 'latency';
-    latDiv.textContent = `TTS: ${ttsMs}ms / ${(blob.size/1024).toFixed(1)}KB`;
-    log.appendChild(audio);
-    log.appendChild(latDiv);
-    log.scrollTop = log.scrollHeight;
-    setStatus('播放中…');
-    try{ await audio.play(); }catch(e){ setStatus('请手动点播放'); }
-    audio.onended = ()=> setStatus('播放结束，再点说话继续');
-  }catch(e){ setStatus('TTS失败：'+e); }
+  if(!clean || clean.length < 2) return null;
+  const resp = await fetch('http://localhost:8000/v1/voice/tts', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text: clean.slice(0,200), emotion:'warm'})
+  });
+  if(!resp.ok) return null;
+  const blob = await resp.blob();
+  if(blob.size < 100) return null;
+  return blob;
 }
 
-// 快速模式：LLM流式收集，第一句出来就调TTS，后续分句合成
-async function chatAndSpeak(text){
+async function streamVoiceChat(text){
   addMsg('user', text);
   setStatus('He 在思考…');
   btn.disabled = true;
+  streaming = true;
   const t0 = performance.now();
 
   try{
@@ -112,7 +141,8 @@ async function chatAndSpeak(text){
     const decoder = new TextDecoder();
     let full = '', buffer = '', sentenceBuf = '';
     const heDiv = addMsg('he', '');
-    let firstTtsDone = false;
+    let firstByteMs = 0, firstAudioMs = 0;
+    let ttsInFlight = null;
 
     while(true){
       const {value, done} = await reader.read();
@@ -127,49 +157,81 @@ async function chatAndSpeak(text){
           try{
             const j = JSON.parse(d);
             if(j.chunk){
+              if(!firstByteMs) firstByteMs = Math.round(performance.now() - t0);
               full += j.chunk;
               sentenceBuf += j.chunk;
               heDiv.textContent = 'He：' + full;
               log.scrollTop = log.scrollHeight;
 
-              // 分句：遇到句号/问号/感叹号/换行就合成
               const sentences = sentenceBuf.split(/(?<=[。！？；\n])/);
-              if(sentences.length > 1 && sentences[0].length >= 4){
-                const toSpeak = sentences[0];
+              if(sentences.length > 1 && sentences[0].trim().length >= 2){
+                const toSpeak = sentences[0].trim();
                 sentenceBuf = sentences.slice(1).join('');
-                if(!firstTtsDone){
-                  firstTtsDone = true;
-                  const chatMs = Math.round(performance.now() - t0);
-                  setStatus(`首句 ${chatMs}ms → TTS…`);
+
+                // Pipeline: 等 TTS 完成 → 入队播放
+                // 不 await，让文字流继续，但 TTS 串行避免过载
+                const speakText = toSpeak;
+                if(!ttsInFlight){
+                  ttsInFlight = fetchTts(speakText).then(async (blob) => {
+                    if(blob){
+                      if(!firstAudioMs) firstAudioMs = Math.round(performance.now() - t0);
+                      audioQueue.push(blob);
+                      playQueue();
+                    }
+                    ttsInFlight = null;
+                  });
+                } else {
+                  ttsInFlight = ttsInFlight.then(() => fetchTts(speakText)).then(async (blob) => {
+                    if(blob){
+                      if(!firstAudioMs) firstAudioMs = Math.round(performance.now() - t0);
+                      audioQueue.push(blob);
+                      playQueue();
+                    }
+                    ttsInFlight = null;
+                  });
                 }
-                await playHe(toSpeak);
+                setStatus('He 在说…');
               }
             }
           }catch{}
         }
       }
     }
-    // 剩余内容
+
+    // 剩余句子
     if(sentenceBuf.trim()){
-      await playHe(sentenceBuf);
+      const last = sentenceBuf.trim();
+      ttsInFlight = (ttsInFlight || Promise.resolve()).then(() => fetchTts(last)).then(async (blob) => {
+        if(blob){ audioQueue.push(blob); playQueue(); }
+      });
     }
-    if(!full){
-      heDiv.textContent = 'He：（无回复）';
-    }
-    const totalMs = Math.round(performance.now() - t0);
-    setStatus(`完成 ${totalMs}ms`);
+
+    if(!full) heDiv.textContent = 'He：（无回复）';
+
+    // 等所有 TTS 完成
+    if(ttsInFlight) await ttsInFlight;
+
+    const latDiv = document.createElement('div');
+    latDiv.className = 'latency';
+    latDiv.textContent = `首字: ${firstByteMs}ms | 首声: ${firstAudioMs || '?'}ms`;
+    log.appendChild(latDiv);
+
   }catch(err){
     setStatus('出错：'+err);
-    addMsg('sys', '出错：'+err);
   }finally{
     btn.disabled = false;
+    streaming = false;
   }
 }
 
-// 试男声
 document.getElementById('testTts').onclick = async ()=>{
-  addMsg('user', '[试男声]');
-  await playHe('你好，我是aihe，记得你喜欢喝美式，住在上海。很高兴陪你聊天。');
+  const t0 = performance.now();
+  const blob = await fetchTts('你好，我是aihe，很高兴认识你。');
+  if(blob){
+    const ms = Math.round(performance.now() - t0);
+    await playAudioBlob(blob);
+    setStatus(`男声 ${ms}ms / ${(blob.size/1024).toFixed(1)}KB`);
+  }
 };
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -188,12 +250,13 @@ if(!SpeechRecognition){
     const text = e.results[0][0].transcript.trim();
     recognition._handled = true;
     if(!text) return;
-    chatAndSpeak(text);
+    streamVoiceChat(text);
   };
 }
 
 btn.onclick = ()=>{
   if(listening){ recognition.stop(); return; }
+  if(streaming){ stopAudio(); streaming=false; setStatus('已打断'); return; }
   try{ recognition.start(); }catch(e){ setStatus('启动失败：'+e); }
 };
 </script>

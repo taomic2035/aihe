@@ -196,3 +196,63 @@ def voice_chat_json(req: VoiceChatJson):
     reply = "".join(chunks)
     audio = tts_service.synthesize(reply, emotion="warm")
     return Response(content=audio, media_type="audio/mpeg")
+
+
+class VoiceChatMuxRequest(BaseModel):
+    user_id: str = "anonymous"
+    text: str = "你好"
+
+
+@router.post("/v1/voice/chat/mux")
+async def voice_chat_mux(req: VoiceChatMuxRequest):
+    import json as _json
+    import base64 as _b64
+
+    user_id = req.user_id
+    text = req.text
+    if not text:
+        text = "你好"
+
+    cancel_event = asyncio.Event()
+    _cancel_events[user_id] = cancel_event
+
+    hits = memory_service.recall(user_id=user_id, query=text, limit=8)
+    mems = [h.content for h in hits]
+    persona = persona_service.build_system_prompt(user_id=user_id)
+
+    async def mux_stream():
+        full_reply = ""
+        sentence_buf = ""
+        try:
+            for chunk in llm_router.stream(user_id=user_id, message=text, persona_prompt=persona, memories=mems):
+                if cancel_event.is_set():
+                    break
+                full_reply += chunk
+                sentence_buf += chunk
+                yield (_json.dumps({"t": chunk}) + "\n").encode()
+
+                sentences = _sentence_split(sentence_buf)
+                if len(sentences) > 1:
+                    for s in sentences[:-1]:
+                        if s:
+                            audio_chunk = await tts_service.synthesize_async(s, emotion="warm")
+                            yield (_json.dumps({"a": _b64.b64encode(audio_chunk).decode()}) + "\n").encode()
+                    sentence_buf = sentences[-1]
+
+            if sentence_buf.strip():
+                audio_chunk = await tts_service.synthesize_async(sentence_buf.strip(), emotion="warm")
+                yield (_json.dumps({"a": _b64.b64encode(audio_chunk).decode()}) + "\n").encode()
+
+            yield (_json.dumps({"done": True, "full": full_reply}) + "\n").encode()
+
+            if any(kw in text for kw in ["我叫", "喜欢", "住在"]):
+                memory_service.write(user_id=user_id, content=text)
+
+            try:
+                await manager.broadcast(user_id, full_reply)
+            except Exception:
+                pass
+        finally:
+            _cancel_events.pop(user_id, None)
+
+    return StreamingResponse(mux_stream(), media_type="application/x-ndjson")
