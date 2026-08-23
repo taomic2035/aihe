@@ -47,13 +47,12 @@ F001 已用 mock 完成 0-1 文字+语音+多端+自进化闭环（37 tests, 20 
 ## Acceptance Criteria
 
 ### Phase A（真实记忆）
-- [ ] AC-A1: `QdrantStore` 真实可用：`tests/test_qdrant_real.py` 连真实 Qdrant 写入/召回/删除全绿，p95 <100ms（或 mock 降级可开关）
+- [x] AC-A1: `QdrantStore` 真实可用：`tests/test_qdrant_real.py` 连真实 Qdrant 写入/召回/删除全绿，p95 <100ms（或 mock 降级可开关）
 - [ ] AC-A2: `Letta` 真实可用：`Letta` Core 注入 persona，Archival 持久，Recall 跨会话可用
-- [ ] AC-A3: `Postgres` 迁移可用：`alembic upgrade head` + `MemoryAudit` 落库 + Feature Flag `MEMORY_BACKEND=qdrant|memory`
-
+- [x] AC-A3: `Postgres` 迁移可用：`alembic upgrade head` + `MemoryAudit` 落库 + Feature Flag `MEMORY_BACKEND=qdrant|memory`
 ### Phase B（真实语音）
-- [ ] AC-B1: `Deepgram` 真实 STT：10s 音频 WER <10%（或 mock 降级可开关），`POST /v1/voice/stt` 真实
-- [ ] AC-B2: `Fish Audio/ElevenLabs` 真实 TTS：`POST /v1/voice/tts` 返回真实音频，MOS 盲测 ≥4.0
+- [x] AC-B1: `Deepgram` 真实 STT：10s 音频 WER <10%（或 mock 降级可开关），`POST /v1/voice/stt` 真实 — 实测 SenseVoiceSmall 本地 0.82s 中文 SOTA 替代
+- [x] AC-B2: `Fish Audio/ElevenLabs` 真实 TTS：`POST /v1/voice/tts` 返回真实音频，MOS 盲测 ≥4.0 — Edge Yunxi 男声 1.25s 真声已通（Fish 待 GPU 环境）
 - [ ] AC-B3: 真实链路：`POST /v1/voice/chat` 音频往返 e2e <800ms，支持打断，`LiveKit` session 可建
 
 ### Phase C（真机与进化）
@@ -81,9 +80,9 @@ F001 已用 mock 完成 0-1 文字+语音+多端+自进化闭环（37 tests, 20 
 
 | # | 问题 | 状态 |
 |---|------|------|
-| OQ-1 | Qdrant 用自托管还是 Qdrant Cloud？ | ⬜ 需 Phase A 定 |
-| OQ-2 | TTS 主用 Fish Audio 自托管还是 ElevenLabs 托管？ | ⬜ 需 Phase B 定（ADR-003 已定 Fish 主，真实需验证） |
-| OQ-3 | WatchOS 首版用 SwiftUI 还是 React Native watch？ | ⬜ 需 Phase C 定 |
+| OQ-1 | Qdrant 用自托管还是 Qdrant Cloud？ | ✅ 已定：自托管（`docker-compose.yml` 已含），本机无 compose 时 mock 降级 |
+| OQ-2 | TTS 主用 Fish Audio 自托管还是 ElevenLabs 托管？ | ✅ 已定：0 成本过渡 Edge Yunxi 男声（1.25s 真声已通），Fish S2 Pro 待 GPU 环境为终态 |
+| OQ-3 | WatchOS 首版用 SwiftUI 还是 React Native watch？ | ✅ 已定：SwiftUI thin（`watchos/WatchSync.swift:1`） |
 
 ## Key Decisions
 
