@@ -235,17 +235,31 @@ document.getElementById('testTts').onclick = async ()=>{
 };
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let useBackendStt = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+
 if(!SpeechRecognition){
-  setStatus('浏览器不支持语音识别，请用 Chrome / Edge');
-  btn.disabled = true;
-} else {
+  setStatus('浏览器不支持 WebSpeech，尝试录音上传识别…');
+  useBackendStt = true;
+}
+
+// WebSpeech path
+if(SpeechRecognition && !useBackendStt){
   recognition = new SpeechRecognition();
   recognition.lang = 'zh-CN';
   recognition.interimResults = false;
   recognition.continuous = false;
   recognition.onstart = ()=>{ listening=true; btn.classList.add('listening'); btn.textContent='🔴 正在听…'; setStatus('正在听…'); };
   recognition.onend = ()=>{ listening=false; btn.classList.remove('listening'); btn.textContent='🎙️ 点击说话'; if(!recognition._handled) setStatus('没听清？再点一次'); };
-  recognition.onerror = (e)=>{ setStatus('识别出错：'+e.error); };
+  recognition.onerror = (e)=>{
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      setStatus('WebSpeech 不可用，切换录音上传…');
+      useBackendStt = true;
+    } else {
+      setStatus('识别出错：'+e.error);
+    }
+  };
   recognition.onresult = (e)=>{
     const text = e.results[0][0].transcript.trim();
     recognition._handled = true;
@@ -254,10 +268,61 @@ if(!SpeechRecognition){
   };
 }
 
+// Backend STT via MediaRecorder upload
+async function startRecording(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream, {mimeType:'audio/webm'});
+    mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = async ()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      if(recordedChunks.length === 0){ setStatus('没录到声音'); return; }
+      const blob = new Blob(recordedChunks, {type:'audio/webm'});
+      setStatus('识别中…');
+      try{
+        const form = new FormData();
+        form.append('audio', blob, 'recording.webm');
+        const resp = await fetch('http://localhost:8000/v1/voice/stt', {method:'POST', body:form});
+        const data = await resp.json();
+        const text = (data.text || '').trim();
+        if(text && text !== '你好'){
+          streamVoiceChat(text);
+        } else {
+          setStatus('没听清，再试一次');
+        }
+      }catch(err){
+        setStatus('STT出错：'+err);
+      }
+    };
+    mediaRecorder.start();
+    listening = true;
+    btn.classList.add('listening');
+    btn.textContent = '🔴 录音中…';
+    setStatus('录音中…（再点停止）');
+  }catch(err){
+    setStatus('麦克风不可用：'+err);
+  }
+}
+
+function stopRecording(){
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.stop();
+    listening = false;
+    btn.classList.remove('listening');
+    btn.textContent = '🎙️ 点击说话';
+  }
+}
+
 btn.onclick = ()=>{
-  if(listening){ recognition.stop(); return; }
+  if(listening){
+    if(useBackendStt) stopRecording();
+    else recognition.stop();
+    return;
+  }
   if(streaming){ stopAudio(); streaming=false; setStatus('已打断'); return; }
-  try{ recognition.start(); }catch(e){ setStatus('启动失败：'+e); }
+  if(useBackendStt) startRecording();
+  else try{ recognition.start(); }catch(e){ setStatus('启动失败：'+e); }
 };
 </script>
 </body>
